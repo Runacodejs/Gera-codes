@@ -109,12 +109,34 @@
       <section id="configuracoes" class="page">
         <h1 class="text-2xl font-bold mb-4">Configurações</h1>
         <p class="text-[#9da6b9] mb-6">Personalize sua experiência.</p>
-        <div class="flex flex-col gap-4">
-          <div>
-            <label class="flex items-center gap-2">
+        <div class="flex flex-col gap-4 max-w-md">
+          <div class="flex items-center justify-between">
+            <label for="modoEscuro" class="flex items-center gap-2">
               <input type="checkbox" class="rounded border-gray-500" id="modoEscuro" checked onchange="alternarTema()">
               <span>Ativar modo escuro</span>
             </label>
+          </div>
+          <div class="flex items-center justify-between">
+            <label for="tamanhoFonte" class="text-white">Tamanho da Fonte</label>
+            <select id="tamanhoFonte" class="form-select rounded-lg bg-[#1c1f27] border border-[#3b4354] p-2 text-white focus:border-primary" onchange="salvarConfiguracoes()">
+              <option value="12px">Pequeno</option>
+              <option value="14px" selected>Médio</option>
+              <option value="16px">Grande</option>
+            </select>
+          </div>
+          <div class="flex items-center justify-between">
+            <label for="linguagemPadrao" class="text-white">Linguagem Padrão</label>
+            <select id="linguagemPadrao" class="form-select rounded-lg bg-[#1c1f27] border border-[#3b4354] p-2 text-white focus:border-primary" onchange="salvarConfiguracoes()">
+                <option>Python</option>
+                <option>JavaScript</option>
+                <option>HTML</option>
+                <option>Java</option>
+                <option>C++</option>
+                <option>TypeScript</option>
+            </select>
+          </div>
+          <div class="mt-4">
+            <button onclick="apagarTodosOsCodigos()" class="bg-red-500 hover:bg-red-700 transition rounded-lg text-white font-bold h-12 px-4">Limpar Meus Códigos</button>
           </div>
         </div>
       </section>
@@ -146,6 +168,7 @@
   <script>
     document.addEventListener('DOMContentLoaded', (event) => {
         carregarTema();
+        carregarConfiguracoes();
     });
 
     function mostrarPagina(id) {
@@ -205,15 +228,33 @@
       card.className = "bg-[#1c1f27] p-4 rounded-lg border border-[#282e39] relative";
       
       card.innerHTML = `
-        <button onclick="copiarCodigoCard(this)" class="absolute top-2 right-2 flex items-center gap-2 bg-[#282e39] px-3 py-2 rounded-lg hover:bg-[#3b4354] transition">
-          <span class="material-symbols-outlined text-base">content_copy</span>Copiar
-        </button>
-        <pre class='text-sm text-[#9da6b9] mt-8'><code></code></pre>
+        <div class="flex gap-2 absolute top-2 right-2">
+          <button onclick="copiarCodigoCard(this)" class="flex items-center gap-2 bg-[#282e39] px-3 py-2 rounded-lg hover:bg-[#3b4354] transition">
+            <span class="material-symbols-outlined text-base">content_copy</span>Copiar
+          </button>
+          <button onclick="apagarCodigoCard(this)" class="flex items-center gap-2 bg-[#282e39] px-3 py-2 rounded-lg hover:bg-[#3b4354] transition">
+            <span class="material-symbols-outlined text-base">delete</span>Apagar
+          </button>
+        </div>
+        <pre class='text-sm text-[#9da6b9] mt-8'><code style="font-size: ${localStorage.getItem('fontSize') || '14px'};"></code></pre>
       `;
       card.querySelector('code').textContent = codigoGerado;
       
       lista.insertBefore(card, lista.firstChild);
       alert("Código salvo em Meus Códigos!");
+    }
+
+    function apagarCodigoCard(button) {
+      const card = button.closest('.relative');
+      card.remove();
+      alert("Código apagado!");
+    }
+
+    function apagarTodosOsCodigos() {
+        if (confirm("Tem certeza que deseja apagar todos os seus códigos salvos?")) {
+            document.getElementById("listaCodigos").innerHTML = "";
+            alert("Todos os códigos foram apagados.");
+        }
     }
 
     function copiarCodigoPrincipal() {
@@ -223,7 +264,7 @@
     }
 
     function copiarCodigoCard(button) {
-      const card = button.parentElement;
+      const card = button.parentElement.parentElement;
       const texto = card.querySelector("pre code").innerText;
       navigator.clipboard.writeText(texto);
       alert("Código copiado do card!");
@@ -248,6 +289,32 @@
       } else {
         localStorage.setItem('modoEscuro', 'desativado');
       }
+    }
+
+    function salvarConfiguracoes() {
+        const tamanhoFonte = document.getElementById('tamanhoFonte').value;
+        const linguagemPadrao = document.getElementById('linguagemPadrao').value;
+        localStorage.setItem('fontSize', tamanhoFonte);
+        localStorage.setItem('defaultLanguage', linguagemPadrao);
+        aplicarConfiguracoes();
+        alert("Configurações salvas!");
+    }
+
+    function carregarConfiguracoes() {
+        const tamanhoFonte = localStorage.getItem('fontSize') || '14px';
+        const linguagemPadrao = localStorage.getItem('defaultLanguage') || 'Python';
+        document.getElementById('tamanhoFonte').value = tamanhoFonte;
+        document.getElementById('linguagemPadrao').value = linguagemPadrao;
+        document.getElementById('linguagem').value = linguagemPadrao;
+        aplicarConfiguracoes();
+    }
+
+    function aplicarConfiguracoes() {
+        const tamanhoFonte = localStorage.getItem('fontSize') || '14px';
+        document.getElementById('codigoGerado').style.fontSize = tamanhoFonte;
+        document.querySelectorAll('#listaCodigos pre code').forEach(code => {
+            code.style.fontSize = tamanhoFonte;
+        });
     }
   </script>
 </body>
