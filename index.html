@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html class="dark" lang="pt-br">
 <head>
@@ -7,6 +8,7 @@
   <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet" />
   <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/openai@4.0.0/dist/index.min.js"></script>
   <script>
     tailwind.config = {
       darkMode: "class",
@@ -102,12 +104,17 @@
       <section id="configuracoes" class="page">
         <h1 class="text-2xl font-bold mb-4">Configurações</h1>
         <p class="text-[#9da6b9] mb-6">Personalize sua experiência.</p>
-        <div class="flex flex-col gap-4">
+        <div class="flex flex-col gap-6">
           <div>
             <label class="flex items-center gap-2">
-              <input type="checkbox" class="rounded border-gray-500" id="modoEscuro" checked onchange="alternarTema()">
+              <input type="checkbox" class="rounded border-gray-500" id="modoEscuro" onchange="alternarTema()">
               <span>Ativar modo escuro</span>
             </label>
+          </div>
+          <div class="flex flex-col gap-2">
+            <label for="apiKey" class="font-medium">Chave da API da OpenAI</label>
+            <input type="password" id="apiKey" class="form-input rounded-lg bg-[#1c1f27] border border-[#3b4354] p-4 text-white focus:border-primary" placeholder="Insira sua chave da API aqui">
+            <button onclick="salvarChave()" class="bg-primary hover:bg-blue-700 transition rounded-lg text-white font-bold h-12 mt-2">Salvar Chave</button>
           </div>
         </div>
       </section>
@@ -137,13 +144,42 @@
   </div>
 
   <script>
+    document.addEventListener('DOMContentLoaded', (event) => {
+      carregarChave();
+      carregarTema();
+    });
+
     function mostrarPagina(id) {
       document.querySelectorAll('.page').forEach(sec => sec.classList.remove('active'));
       document.getElementById(id).classList.add('active');
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
-    function gerarCodigo() {
+    function salvarChave() {
+      const chave = document.getElementById('apiKey').value;
+      if (chave) {
+        localStorage.setItem('openai_api_key', chave);
+        alert('Chave da API salva com sucesso!');
+      } else {
+        alert('Por favor, insira uma chave da API.');
+      }
+    }
+
+    function carregarChave() {
+      const chave = localStorage.getItem('openai_api_key');
+      if (chave) {
+        document.getElementById('apiKey').value = chave;
+      }
+    }
+
+    async function gerarCodigo() {
+      const apiKey = localStorage.getItem('openai_api_key');
+      if (!apiKey) {
+        alert('Chave da API não encontrada. Por favor, adicione sua chave na página de Configurações.');
+        mostrarPagina('configuracoes');
+        return;
+      }
+
       const prompt = document.getElementById('prompt').value.trim();
       const lang = document.getElementById('linguagem').value;
       const output = document.getElementById('codigoGerado');
@@ -153,20 +189,33 @@
         return;
       }
 
-      const codigoExemplo = {
-        Python: `def exemplo():\n    print("Código Python gerado!")`,
-        JavaScript: `function exemplo() {\n  console.log("Código JavaScript gerado!");\n}`,
-        Java: `public class Exemplo {\n  public static void main(String[] args) {\n    System.out.println("Código Java gerado!");\n  }\n}`,
-        "C++": `#include <iostream>\nusing namespace std;\nint main() {\n  cout << "Código C++ gerado!" << endl;\n  return 0;\n}`,
-        TypeScript: `function exemplo(): void {\n  console.log("Código TypeScript gerado!");\n}`
-      };
-      output.innerHTML = `<code>${codigoExemplo[lang]}</code>`;
+      output.innerHTML = "<code>// Gerando código...</code>";
 
-      const lista = document.getElementById("listaCodigos");
-      const card = document.createElement("div");
-      card.className = "bg-[#1c1f27] p-4 rounded-lg border border-[#282e39]";
-      card.innerHTML = `<pre class='text-sm text-[#9da6b9]'><code>${codigoExemplo[lang]}</code></pre>`;
-      lista.appendChild(card);
+      const openai = new OpenAI({ apiKey, dangerouslyAllowBrowser: true });
+
+      try {
+        const response = await openai.chat.completions.create({
+          model: "gpt-3.5-turbo",
+          messages: [
+            {
+              role: "system",
+              content: `Gere um código em ${lang} que faça o seguinte: ${prompt}. O código deve ser bem comentado e seguir as melhores práticas da linguagem.`
+            },
+          ],
+        });
+
+        const codigo = response.choices[0].message.content;
+        output.innerHTML = `<code>${codigo}</code>`;
+
+        const lista = document.getElementById("listaCodigos");
+        const card = document.createElement("div");
+        card.className = "bg-[#1c1f27] p-4 rounded-lg border border-[#282e39]";
+        card.innerHTML = `<pre class='text-sm text-[#9da6b9]'><code>${codigo}</code></pre>`;
+        lista.appendChild(card);
+      } catch (error) {
+        console.error("Erro ao gerar código:", error);
+        output.innerHTML = "<code>// Ocorreu um erro ao gerar o código. Verifique sua chave de API e a conexão com a internet.</code>";
+      }
     }
 
     function copiarCodigo() {
@@ -174,10 +223,27 @@
       navigator.clipboard.writeText(texto);
       alert("Código copiado!");
     }
-
+    
+    function carregarTema() {
+        const modoEscuro = localStorage.getItem('modoEscuro');
+        const checkbox = document.getElementById('modoEscuro');
+        if (modoEscuro === 'ativado') {
+            document.documentElement.classList.add('dark');
+            checkbox.checked = true;
+        } else {
+            document.documentElement.classList.remove('dark');
+            checkbox.checked = false;
+        }
+    }
+    
     function alternarTema() {
       document.documentElement.classList.toggle('dark');
+      if (document.documentElement.classList.contains('dark')) {
+        localStorage.setItem('modoEscuro', 'ativado');
+      } else {
+        localStorage.setItem('modoEscuro', 'desativado');
+      }
     }
   </script>
 </body>
-              </html>
+</html>
