@@ -84,9 +84,14 @@
           <div class="bg-[#1c1f27] rounded-lg p-6 flex flex-col">
             <div class="flex justify-between items-center mb-4">
               <h2 class="text-lg font-bold">Código Gerado</h2>
-              <button onclick="copiarCodigo()" class="flex items-center gap-2 bg-[#282e39] px-3 py-2 rounded-lg hover:bg-[#3b4354] transition">
-                <span class="material-symbols-outlined text-base">content_copy</span>Copiar
-              </button>
+              <div class="flex gap-2">
+                <button onclick="salvarParaMeusCodigos()" class="flex items-center gap-2 bg-[#282e39] px-3 py-2 rounded-lg hover:bg-[#3b4354] transition">
+                  <span class="material-symbols-outlined text-base">save</span>Salvar
+                </button>
+                <button onclick="copiarCodigoPrincipal()" class="flex items-center gap-2 bg-[#282e39] px-3 py-2 rounded-lg hover:bg-[#3b4354] transition">
+                  <span class="material-symbols-outlined text-base">content_copy</span>Copiar
+                </button>
+              </div>
             </div>
             <pre id="codigoGerado" class="bg-[#101622] p-4 rounded-md overflow-auto text-sm text-[#9da6b9]"><code># Seu código aparecerá aqui</code></pre>
           </div>
@@ -104,17 +109,12 @@
       <section id="configuracoes" class="page">
         <h1 class="text-2xl font-bold mb-4">Configurações</h1>
         <p class="text-[#9da6b9] mb-6">Personalize sua experiência.</p>
-        <div class="flex flex-col gap-6">
+        <div class="flex flex-col gap-4">
           <div>
             <label class="flex items-center gap-2">
-              <input type="checkbox" class="rounded border-gray-500" id="modoEscuro" onchange="alternarTema()">
+              <input type="checkbox" class="rounded border-gray-500" id="modoEscuro" checked onchange="alternarTema()">
               <span>Ativar modo escuro</span>
             </label>
-          </div>
-          <div class="flex flex-col gap-2">
-            <label for="apiKey" class="font-medium">Chave da API da OpenAI</label>
-            <input type="password" id="apiKey" class="form-input rounded-lg bg-[#1c1f27] border border-[#3b4354] p-4 text-white focus:border-primary" placeholder="Insira sua chave da API aqui">
-            <button onclick="salvarChave()" class="bg-primary hover:bg-blue-700 transition rounded-lg text-white font-bold h-12 mt-2">Salvar Chave</button>
           </div>
         </div>
       </section>
@@ -145,8 +145,7 @@
 
   <script>
     document.addEventListener('DOMContentLoaded', (event) => {
-      carregarChave();
-      carregarTema();
+        carregarTema();
     });
 
     function mostrarPagina(id) {
@@ -155,42 +154,25 @@
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
-    function salvarChave() {
-      const chave = document.getElementById('apiKey').value;
-      if (chave) {
-        localStorage.setItem('openai_api_key', chave);
-        alert('Chave da API salva com sucesso!');
-      } else {
-        alert('Por favor, insira uma chave da API.');
-      }
-    }
-
-    function carregarChave() {
-      const chave = localStorage.getItem('openai_api_key');
-      if (chave) {
-        document.getElementById('apiKey').value = chave;
-      }
-    }
-
     async function gerarCodigo() {
-      const apiKey = localStorage.getItem('openai_api_key');
-      if (!apiKey) {
-        alert('Chave da API não encontrada. Por favor, adicione sua chave na página de Configurações.');
-        mostrarPagina('configuracoes');
-        return;
-      }
-
       const prompt = document.getElementById('prompt').value.trim();
       const lang = document.getElementById('linguagem').value;
       const output = document.getElementById('codigoGerado');
+      const codeElement = output.querySelector('code');
 
       if (!prompt) {
-        output.innerHTML = "<code>// Por favor, insira uma descrição antes de gerar o código.</code>";
+        codeElement.textContent = "// Por favor, insira uma descrição antes de gerar o código.";
         return;
       }
 
-      output.innerHTML = "<code>// Gerando código...</code>";
+      codeElement.textContent = "// Gerando código...";
 
+      const apiKey = "COLE_SUA_CHAVE_DA_API_AQUI"; // Substitua pela sua chave
+      if (apiKey === "COLE_SUA_CHAVE_DA_API_AQUI") {
+        codeElement.textContent = "// Por favor, substitua a chave da API no código-fonte (index.html).";
+        return;
+      }
+      
       const openai = new OpenAI({ apiKey, dangerouslyAllowBrowser: true });
 
       try {
@@ -199,31 +181,67 @@
           messages: [
             {
               role: "system",
-              content: `Gere um código em ${lang} que faça o seguinte: ${prompt}. O código deve ser bem comentado e seguir as melhores práticas da linguagem.`
+              content: `Gere um código em ${lang} que faça o seguinte: ${prompt}. O código deve ser bem comentado e seguir as melhores práticas da linguagem.`,
             },
           ],
         });
 
         const codigo = response.choices[0].message.content;
-        output.innerHTML = `<code>${codigo}</code>`;
+        codeElement.textContent = codigo;
 
-        const lista = document.getElementById("listaCodigos");
-        const card = document.createElement("div");
-        card.className = "bg-[#1c1f27] p-4 rounded-lg border border-[#282e39]";
-        card.innerHTML = `<pre class='text-sm text-[#9da6b9]'><code>${codigo}</code></pre>`;
-        lista.appendChild(card);
       } catch (error) {
         console.error("Erro ao gerar código:", error);
-        output.innerHTML = "<code>// Ocorreu um erro ao gerar o código. Verifique sua chave de API e a conexão com a internet.</code>";
+        let errorMessage = "// Ocorreu um erro ao gerar o código. Verifique o console para detalhes.";
+        if (error.status === 401) {
+            errorMessage = "// Erro de Autenticação: Sua chave de API está incorreta ou inválida.";
+        } else if (error.status === 429) {
+            errorMessage = "// Erro: Você excedeu sua cota ou limite de requisições na API.";
+        } else if (error.name === 'AbortError') {
+            errorMessage = "// A requisição demorou muito e foi cancelada.";
+        }
+        codeElement.textContent = errorMessage;
       }
     }
 
-    function copiarCodigo() {
+    function salvarParaMeusCodigos() {
+      const codigoGerado = document.getElementById('codigoGerado').innerText;
+      const placeholder = "# Seu código aparecerá aqui";
+      const gerando = "// Gerando código...";
+
+      if (codigoGerado.trim() === placeholder.trim() || codigoGerado.trim().startsWith('//')) {
+        alert("Não há código válido para salvar!");
+        return;
+      }
+
+      const lista = document.getElementById("listaCodigos");
+      const card = document.createElement("div");
+      card.className = "bg-[#1c1f27] p-4 rounded-lg border border-[#282e39] relative";
+      
+      card.innerHTML = `
+        <button onclick="copiarCodigoCard(this)" class="absolute top-2 right-2 flex items-center gap-2 bg-[#282e39] px-3 py-2 rounded-lg hover:bg-[#3b4354] transition">
+          <span class="material-symbols-outlined text-base">content_copy</span>Copiar
+        </button>
+        <pre class='text-sm text-[#9da6b9] mt-8'><code></code></pre>
+      `;
+      card.querySelector('code').textContent = codigoGerado;
+      
+      lista.insertBefore(card, lista.firstChild);
+      alert("Código salvo em Meus Códigos!");
+    }
+
+    function copiarCodigoPrincipal() {
       const texto = document.getElementById("codigoGerado").innerText;
       navigator.clipboard.writeText(texto);
       alert("Código copiado!");
     }
-    
+
+    function copiarCodigoCard(button) {
+      const card = button.parentElement;
+      const texto = card.querySelector("pre code").innerText;
+      navigator.clipboard.writeText(texto);
+      alert("Código copiado do card!");
+    }
+
     function carregarTema() {
         const modoEscuro = localStorage.getItem('modoEscuro');
         const checkbox = document.getElementById('modoEscuro');
