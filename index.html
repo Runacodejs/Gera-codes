@@ -8,7 +8,6 @@
   <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet" />
   <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet" />
-  <script src="https://cdn.jsdelivr.net/npm/openai@4.0.0/dist/index.min.js"></script>
   <script>
     tailwind.config = {
       darkMode: "class",
@@ -167,39 +166,26 @@
 
       codeElement.textContent = "// Gerando código...";
 
-      const apiKey = "COLE_SUA_CHAVE_DA_API_AQUI"; // Substitua pela sua chave
-      if (apiKey === "COLE_SUA_CHAVE_DA_API_AQUI") {
-        codeElement.textContent = "// Por favor, substitua a chave da API no código-fonte (index.html).";
-        return;
-      }
-      
-      const openai = new OpenAI({ apiKey, dangerouslyAllowBrowser: true });
-
       try {
-        const response = await openai.chat.completions.create({
-          model: "gpt-3.5-turbo",
-          messages: [
-            {
-              role: "system",
-              content: `Gere um código em ${lang} que faça o seguinte: ${prompt}. O código deve ser bem comentado e seguir as melhores práticas da linguagem.`,
-            },
-          ],
+        const response = await fetch('/api/generate', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ prompt, lang }),
         });
 
-        const codigo = response.choices[0].message.content;
-        codeElement.textContent = codigo;
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || `Erro HTTP: ${response.status}`);
+        }
+
+        const data = await response.json();
+        codeElement.textContent = data.codigo;
 
       } catch (error) {
         console.error("Erro ao gerar código:", error);
-        let errorMessage = "// Ocorreu um erro ao gerar o código. Verifique o console para detalhes.";
-        if (error.status === 401) {
-            errorMessage = "// Erro de Autenticação: Sua chave de API está incorreta ou inválida.";
-        } else if (error.status === 429) {
-            errorMessage = "// Erro: Você excedeu sua cota ou limite de requisições na API.";
-        } else if (error.name === 'AbortError') {
-            errorMessage = "// A requisição demorou muito e foi cancelada.";
-        }
-        codeElement.textContent = errorMessage;
+        codeElement.textContent = `// Ocorreu um erro: ${error.message}`;
       }
     }
 
